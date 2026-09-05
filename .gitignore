@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+.pytest_cache/
+venv/
+.venv/
+
+# Environment & Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Editor & Scratch
+.marks
+.vscode/
+.idea/
+python.py
+tes.js
+tes.rn
