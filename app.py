@@ -353,24 +353,46 @@ class AirQualityApp:
         )
         self.aqi_status.pack(anchor="w", pady=(4, 0))
 
-        table_frame = tk.Frame(self.root, bg="#f8fafc", padx=20)
-        table_frame.pack(fill=tk.BOTH, expand=True)
+        pollutants_frame = tk.Frame(self.root, bg="#f8fafc", padx=20)
+        pollutants_frame.pack(fill=tk.BOTH, expand=True)
 
-        cols = ("parameter", "conc", "aqi")
-        self.tree = ttk.Treeview(table_frame, columns=cols, show="headings", height=6)
-        self.tree.heading("parameter", text="Parameter Polutan", anchor="w")
-        self.tree.heading("conc", text="Konsentrasi (ug/m3)", anchor="center")
-        self.tree.heading("aqi", text="Nilai AQI", anchor="center")
+        self.pollutant_vars = {}
 
-        self.tree.column("parameter", anchor="w", width=220)
-        self.tree.column("conc", anchor="center", width=140)
-        self.tree.column("aqi", anchor="center", width=100)
+        for i, (code, label, unit) in enumerate(POLLUTANT_CATALOG):
+            row = i // 2
+            col = i % 2
 
-        tree_scroll = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscrollcommand=tree_scroll.set)
+            card = tk.Frame(
+                pollutants_frame,
+                bg="#ffffff",
+                relief="flat",
+                bd=0,
+                highlightthickness=1,
+                highlightbackground="#e2e8f0",
+                highlightcolor="#e2e8f0",
+                padx=15,
+                pady=15
+            )
+            card.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
+            pollutants_frame.grid_columnconfigure(col, weight=1)
 
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+            title_lbl = tk.Label(card, text=label, font=("Segoe UI", 10, "bold"), bg="#ffffff", fg="#334155")
+            title_lbl.pack(anchor="w")
+
+            val_frame = tk.Frame(card, bg="#ffffff")
+            val_frame.pack(fill=tk.X, pady=(8, 0))
+
+            conc_lbl = tk.Label(val_frame, text="-- " + unit, font=("Segoe UI", 12), bg="#ffffff", fg="#0f172a")
+            conc_lbl.pack(side=tk.LEFT)
+
+            aqi_lbl = tk.Label(val_frame, text="AQI: --", font=("Segoe UI", 9, "bold"), bg="#f1f5f9", fg="#475569", padx=6, pady=2)
+            aqi_lbl.pack(side=tk.RIGHT)
+
+            self.pollutant_vars[code] = {
+                "conc_lbl": conc_lbl,
+                "aqi_lbl": aqi_lbl,
+                "unit": unit
+            }
 
         self.status_bar = tk.Label(
             self.root,
@@ -446,8 +468,9 @@ class AirQualityApp:
         self.city_display.config(text=city.title())
         self.aqi_num.config(text="--", fg="#94a3b8")
         self.aqi_status.config(text="Gagal", bg="#fee2e2", fg="#991b1b")
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        for p_vars in self.pollutant_vars.values():
+            p_vars["conc_lbl"].config(text="-- " + p_vars["unit"])
+            p_vars["aqi_lbl"].config(text="AQI: --", bg="#f1f5f9", fg="#475569")
         self.status_bar.config(text=f"[Error] {message}")
         if level == "warning":
             messagebox.showwarning("Informasi", message)
@@ -464,11 +487,22 @@ class AirQualityApp:
         self.aqi_status.config(text=status_text, bg=bg_color, fg=fg_color)
         self.aqi_num.config(fg=bg_color)
 
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        for p_vars in self.pollutant_vars.values():
+            p_vars["conc_lbl"].config(text="-- " + p_vars["unit"])
+            p_vars["aqi_lbl"].config(text="AQI: --", bg="#f1f5f9", fg="#475569")
 
         for pol in report.pollutants:
-            self.tree.insert("", tk.END, values=(pol.label, pol.concentration, pol.aqi))
+            if pol.code in self.pollutant_vars:
+                p_vars = self.pollutant_vars[pol.code]
+                p_vars["conc_lbl"].config(text=f"{pol.concentration} {p_vars['unit']}")
+                p_vars["aqi_lbl"].config(text=f"AQI: {pol.aqi}")
+
+                try:
+                    pol_aqi_val = int(pol.aqi)
+                    _, bg_color, fg_color = get_aqi_info(pol_aqi_val)
+                    p_vars["aqi_lbl"].config(bg=bg_color, fg=fg_color)
+                except ValueError:
+                    p_vars["aqi_lbl"].config(bg="#f1f5f9", fg="#475569")
 
         timestamp = report.fetched_at.strftime("%H:%M:%S")
         self.status_bar.config(text=f"[OK] Diperbarui pukul {timestamp} untuk {report.city.title()}")
